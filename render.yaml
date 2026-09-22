@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: mednexus-ai
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: "*"

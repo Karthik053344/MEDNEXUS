@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MEDNEXUS AI</title>
+<style>
+:root{--bg:#06101c;--panel:#0c1a2a;--panel2:#102238;--line:#203b57;--text:#eef7ff;--muted:#9db4ca;--a:#52e4c1;--danger:#ff6478}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#12344d 0,#06101c 45%);color:var(--text);font:15px/1.55 Inter,system-ui,Segoe UI,Arial}
+header{height:72px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 5%}.logo{font-weight:900;letter-spacing:.09em;font-size:22px}.logo span{color:var(--a)}.wrap{max-width:1220px;margin:34px auto;padding:0 20px}.hero{margin-bottom:25px}.hero h1{font-size:48px;line-height:1;margin:0 0 12px}.hero p{color:var(--muted);max-width:800px}.grid{display:grid;grid-template-columns:390px 1fr;gap:20px}.card{background:#0c1a2af2;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 15px 45px #0003}label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}input,textarea,select{width:100%;background:#071321;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px}textarea{min-height:90px;resize:vertical}button{width:100%;border:0;background:var(--a);color:#06251e;padding:13px;border-radius:10px;font-weight:900;margin-top:14px;cursor:pointer}.alert{padding:13px;border-radius:12px;background:#14283c;margin-bottom:15px}.danger{background:#381821;border:1px solid var(--danger)}.hyp{border:1px solid var(--line);border-radius:13px;padding:15px;margin:12px 0}.score{float:right;color:var(--a);font-weight:900}.muted,.small{color:var(--muted)}.small{font-size:12px}.pill{display:inline-block;background:#12364c;color:var(--a);padding:4px 8px;border-radius:99px;margin:3px;font-size:12px}.empty{min-height:420px;display:grid;place-items:center;text-align:center;color:var(--muted)}@media(max-width:850px){.grid{grid-template-columns:1fr}.hero h1{font-size:36px}}
+</style>
+</head>
+<body>
+<header><div class="logo">MEDNEXUS <span>AI</span></div><div class="small">Biomedical Intelligence • Research Build</div></header>
+<main class="wrap">
+<section class="hero"><h1>Evidence-aware biomedical intelligence.</h1><p>Structure clinical information into transparent hypotheses, safety signals, missing evidence and auditable outputs. Research prototype, not diagnosis or prescribing.</p></section>
+<div class="grid">
+<section class="card">
+<h2>Assessment</h2>
+<label>Age</label><input id="age" type="number" min="0" max="120">
+<label>Symptoms</label><textarea id="symptoms" placeholder="fever, cough, fatigue"></textarea>
+<label>Medical history</label><textarea id="history"></textarea>
+<label>Medications</label><textarea id="medications"></textarea>
+<label>Allergies</label><textarea id="allergies"></textarea>
+<button onclick="runAssessment()">Run assessment</button>
+<p class="small">Use only non-identifying demonstration data.</p>
+</section>
+<section class="card" id="out"><div class="empty"><div><div style="font-size:52px">🧬</div><h2>MEDNEXUS ready</h2><p>Enter demo information to begin.</p></div></div></section>
+</div></main>
+<script>
+const split=v=>v.split(/[,
+]/).map(x=>x.trim()).filter(Boolean);
+async function runAssessment(){
+ const out=document.getElementById("out"), symptoms=split(document.getElementById("symptoms").value);
+ if(!symptoms.length){out.innerHTML="<div class='alert danger'>Add at least one symptom.</div>";return}
+ out.innerHTML="<div class='empty'>Processing…</div>";
+ const payload={age:age.value?+age.value:null,sex:"unknown",symptoms:symptoms.map(name=>({name})),history:split(history.value),medications:split(medications.value),allergies:split(allergies.value),vitals:{},labs:{}};
+ try{
+  const r=await fetch("/api/assess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const d=await r.json();
+  let h=`<div class="alert ${d.safety_level==="emergency"?"danger":""}"><b>Safety: ${d.safety_level}</b><br>${d.safety_message}</div>`;
+  h+=`<p>${d.normalized_symptoms.map(x=>`<span class="pill">${x}</span>`).join("")}</p><h2>Conditions to consider</h2>`;
+  if(!d.hypotheses.length)h+="<p class='muted'>No configured hypothesis matched. This does not rule out disease.</p>";
+  d.hypotheses.forEach(x=>h+=`<div class="hyp"><span class="score">${x.score}</span><h3>${x.condition}</h3><b>Evidence for</b><ul>${x.evidence_for.map(y=>`<li>${y}</li>`).join("")}</ul><b>Missing information</b><ul>${x.missing_information.map(y=>`<li>${y}</li>`).join("")}</ul></div>`);
+  h+=`<h2>Questions</h2><ul>${d.recommended_questions.map(x=>`<li>${x}</li>`).join("")}</ul><h2>Limitations</h2><ul>${d.limitations.map(x=>`<li>${x}</li>`).join("")}</ul>`;
+  out.innerHTML=h;
+ }catch(e){out.innerHTML="<div class='alert danger'>Unable to reach the assessment service.</div>"}
+}
+</script>
+</body></html>
